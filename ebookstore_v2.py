@@ -103,6 +103,7 @@ class Book:
 def create_table():
     '''Creates and populates table when user first opens programme'''
 
+    # This will only run when the table does not exist
     try:
         cursor.execute('''CREATE TABLE IF NOT EXISTS book
                         (id INTEGER PRIMARY KEY, title VARCHAR(255),
