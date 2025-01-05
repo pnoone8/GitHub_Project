@@ -625,10 +625,10 @@ def search_by_author():
 def search_by_low_stock():
     '''Search for books running low in stock'''
 
-    # Returns all books with five units or less in stock
+    # Returns all books with ten units or less in stock
     try:
         cursor.execute('''SELECT title, author, qty FROM book WHERE
-                   qty <= 5 ORDER BY qty DESC''')
+                   qty <= 10 ORDER BY qty DESC''')
         low_stock_results = cursor.fetchall()
     except sqlite3.Error as e:
         print("Error: Database could not be accessed. "
