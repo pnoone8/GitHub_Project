@@ -280,12 +280,12 @@ def update_book():
                 continue
             break
 
-        # Establishes user choice as object in Book class
-        book_to_update = Book(None, title_to_update, author_to_update,
-                              None)
-
         # Updates qty with database value
         book_to_update.set_qty(cursor)
+
+         # Establishes user choice as object in Book class
+        book_to_update = Book(None, title_to_update, author_to_update,
+                              None)
 
         if not book_to_update.does_exist(cursor):
             print(f"\n'{book_to_update.title} by "
