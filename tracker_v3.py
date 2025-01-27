@@ -196,9 +196,11 @@ def options(menu_choice):
     '''
 
     if menu_choice == 1:
-        define_category()
+        define_category("Expense")
     if menu_choice == 2:
         view_expenses_menu()
+    if menu_choice == 4:
+        define_category("Income")
     if menu_choice == 11:
         print("\nYou have successfully quit the application!")
         exit()
@@ -222,11 +224,11 @@ def return_option():
             continue
 
 
-def define_category():
+def define_category(transaction_type):
     '''Defines existing category or adds new category'''
 
     while True:
-        print("\nWhat category of expense is it?\n"
+        print("\nWhat category of transaction is it?\n"
               "\n1. Bills"
               "\n2. Personal"
               "\n3. Travel"
@@ -258,18 +260,21 @@ def define_category():
         new_category_type = Category(None, category_name)
         new_category_type.add(category_name)
         new_category_id = cursor.lastrowid
-        add_expense(new_category_id, new_category, category_name)
+        add_transaction(new_category_id, new_category, category_name,
+                        transaction_type)
     else:
         new_category_id = new_category
-        add_expense(new_category_id, new_category, None)
+        add_transaction(new_category_id, new_category, None,
+                        transaction_type)
 
 
-def add_expense(new_category_id, new_category, category_name):
-    '''Creates and adds a new expense'''
+def add_transaction(new_category_id, new_category, category_name,
+                    transaction_type):
+    '''Creates and adds a new transaction'''
 
     while True:
-        new_recipient = input("\nWho is the recipient of the "
-                              "expense?\n")
+        new_recipient = input("\nWho is the recipient or payer of the "
+                              "transaction?\n")
         if not new_recipient:
             print("Recipient cannot be blank.")
             continue
@@ -277,7 +282,7 @@ def add_expense(new_category_id, new_category, category_name):
         while True:
             try:
                 new_amount = float(input("\nWhat is the value of the "
-                                         "expense?\n"))
+                                         "transaction?\n"))
                 if new_amount < 0:
                     print("Amount cannot be negative.")
                     continue
@@ -286,9 +291,10 @@ def add_expense(new_category_id, new_category, category_name):
                 print("\nInvalid entry. Please try again.")
                 continue
 
-        new_expense = Transaction(None, new_recipient, new_amount,
-                                  "Expense", today.isoformat(),
-                                  new_category_id)
+        new_transaction = Transaction(None, new_recipient, new_amount,
+                                      transaction_type,
+                                      today.isoformat(),
+                                      new_category_id)
 
         category_map = {
             1: "Bills",
@@ -296,35 +302,35 @@ def add_expense(new_category_id, new_category, category_name):
             3: "Travel",
             4: "Food and Drink"}
 
-        new_expense.add(new_category_id)
+        new_transaction.add(new_category_id)
+        action_word = "to" if transaction_type == "Expense" else "from"
 
         if new_category in category_map:
-            print(f"\nNew expense added in "
+            print(f"\nNew {transaction_type} added in "
                   f"{category_map[new_category]}: "
-                  f"£{new_expense.amount:.2f} to "
-                  f"{new_expense.recipient} on {today}.")
+                  f"£{new_transaction.amount:.2f} {action_word} "
+                  f"{new_transaction.recipient} on {today}.")
 
         if new_category == 5:
-            print(f"\nNew expense added in "
+            print(f"\nNew {transaction_type} added in "
                   f"{category_name}: "
-                  f"£{new_expense.amount:.2f} to "
-                  f"{new_expense.recipient} on {today}.")
-
+                  f"£{new_transaction.amount:.2f} {action_word} "
+                  f"{new_transaction.recipient} on {today}.")
         break
 
-    add_more()
+    add_more(transaction_type)
 
 
-def add_more():
-    '''Gives user option to add another expense'''
+def add_more(transaction_type):
+    '''Gives user option to add another transaction'''
 
     while True:
-        add_another = input("\nWould you like to add another expense?"
-                            " (Y/N):\n")
+        add_another = input("\nWould you like to add another "
+                            "transaction? (Y/N):\n")
         if add_another in ("Y", "y"):
-            define_category()
+            define_category(transaction_type)
         if add_another in ("N", "n"):
-            print("\nYou have chosen not to add any more expenses"
+            print("\nYou have chosen not to add any more transactions"
                   " and will be taken back to the home screen.\n")
             menu()
         else:
