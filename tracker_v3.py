@@ -379,7 +379,7 @@ def search_results(results, transaction_type):
 
 
 def view_all_transactions(transaction_type):
-    '''Displays all expenses in user-friendly way'''
+    '''Displays all transactions in user-friendly way'''
 
     try:
         cursor.execute('''SELECT * FROM Transactions WHERE type = ?''',
