@@ -44,7 +44,8 @@ class Transaction:
     def add(self, user_choice):
         '''Adds Transaction to Transactions table'''
 
-        if user_choice in range(1, 5):
+        # Adds chosen category if user chooses from default list
+        if user_choice > 0:
             category = user_choice
         else:
             category = self.category_id
@@ -76,6 +77,20 @@ class Transaction:
             db.rollback()
             raise e
 
+    def category_to_null(self, deleted_category_id):
+        '''Sets category_id to NULL once category has been deleted'''
+
+        try:
+            cursor.execute('''UPDATE Transactions SET category_id =
+                           ? WHERE category_id = ?''',
+                           (None, deleted_category_id))
+            db.commit()
+        except sqlite3.Error as e:
+            print(f"Error: Amount could not be updated. Error details: "
+                  f"{e}.")
+            db.rollback()
+            raise e
+
 
 class Category:
     '''Defining Category as its own class'''
@@ -85,7 +100,7 @@ class Category:
         self.category_type = category_type
 
     def add(self, category_name):
-        '''Adds category to Categories tables'''
+        '''Adds new Category to Categories tables'''
 
         try:
             cursor.execute('''INSERT INTO Categories
@@ -95,6 +110,35 @@ class Category:
         except sqlite3.Error as e:
             print("Error: The category could not be added. "
                   f"Error details: {e}")
+            db.rollback()
+            raise e
+
+    def does_exist(self, db_cursor):
+        '''Checks if a Category exists when user tries to add'''
+
+        try:
+            db_cursor.execute('''SELECT COUNT(*) FROM Categories WHERE
+                            LOWER(category_type) = LOWER(?)''',
+                              (self.category_type,))
+            count = db_cursor.fetchone()
+        except sqlite3.Error as e:
+            print("Error: The database could not be accessed. "
+                  f"Error details: {e}")
+            raise e
+
+        return count[0] > 0
+
+    def delete(self):
+        '''Deletes a Category from the database'''
+
+        try:
+            cursor.execute('''DELETE FROM Categories WHERE
+                            category_id = ?''',
+                           (self.category_id,))
+            db.commit()
+        except sqlite3.Error as e:
+            print(f"Error: Category could not be deleted. "
+                  f"Error details: {e}.")
             db.rollback()
             raise e
 
@@ -132,7 +176,7 @@ def add_default_category():
     categories_to_add = [Category(1, "Bills"),
                          Category(2, "Personal"),
                          Category(3, "Travel"),
-                         Category(4, "Food_and_Drink")]
+                         Category(4, "Food")]
 
     # Gets count from database to see if table needs populating
     try:
@@ -156,6 +200,22 @@ def add_default_category():
               f"Error details: {e}")
         db.rollback()
         raise e
+
+
+def get_category_map():
+    '''Creates dynamic category map based on user's adds and deletes'''
+
+    category_map = {}
+
+    try:
+        cursor.execute('''SELECT category_id, category_type FROM
+                       Categories''')
+        for category_id, category_type in cursor.fetchall():
+            category_map[category_id] = category_type
+    except sqlite3.Error as e:
+        print(f"Error fetching categories: {e}")
+
+    return category_map
 
 
 def menu():
@@ -227,38 +287,60 @@ def return_option():
 def define_category(transaction_type):
     '''Defines existing category or adds new category'''
 
+    category_map = get_category_map()
+
+    # Gives user the option of choosing a default category or adding new
     while True:
-        print("\nWhat category of transaction is it?\n"
-              "\n1. Bills"
-              "\n2. Personal"
-              "\n3. Travel"
-              "\n4. Food and Drink"
-              "\n5. Add new category")
+        print(f"\nWhat category of {transaction_type} is it?\n")
+        for key, value in category_map.items():
+            print(f"{key}. {value}")
+        print("0. Add new category")
+
         try:
-            new_category = int(input("\nMenu choice (1-5): "))
-            if not new_category:
-                print("Category cannot be blank.")
+            new_category = int(input("\nMenu choice: "))
+            if new_category == "":
+                print("\nCategory cannot be blank.")
                 continue
-            if new_category not in range(1, 6):
-                print("\nInvalid entry. Please enter a number"
-                      " between 1 and 5.")
+            if new_category not in category_map and new_category != 0:
+                print("\nInvalid entry. Please try again.")
                 continue
             break
         except ValueError:
             print("\nInvalid entry. Please try again.")
             continue
 
-    if new_category == 5:
+    add_category(new_category, transaction_type)
+
+
+def add_category(new_category, transaction_type):
+    '''Adds new category'''
+
+    # User chooses new category name
+    if new_category == 0:
         while True:
             category_name = input("\nWhat would you like to call the "
                                   "new category?\n")
             if not category_name:
                 print("Category name cannot be blank.")
                 continue
+
+            # Creates new category as object in Category class
+            new_category_type = Category(None, category_name)
+
+            # Checks if new category exists in database, adds if not
+            if new_category_type.does_exist(cursor):
+                print(f"\n{new_category_type.category_type} category "
+                      "could not be added because it already exists.")
+                continue
+            else:
+                new_category_type.add(category_name)
             break
 
-        new_category_type = Category(None, category_name)
-        new_category_type.add(category_name)
+        category_map = get_category_map()
+        new_key = max(category_map.keys()) + 1
+        category_map[new_key] = category_name
+
+        # Assigns category id to object
         new_category_id = cursor.lastrowid
         add_transaction(new_category_id, new_category, category_name,
                         transaction_type)
@@ -272,9 +354,13 @@ def add_transaction(new_category_id, new_category, category_name,
                     transaction_type):
     '''Creates and adds a new transaction'''
 
+    # Defining either recipient or payer depending on transaction type
+    person_word = "recipient" if transaction_type == \
+        "Expense" else "payer"
+
     while True:
-        new_recipient = input("\nWho is the recipient or payer of the "
-                              "transaction?\n")
+        new_recipient = input(f"\nWho is the {person_word} of the "
+                              f"{transaction_type}?\n")
         if not new_recipient:
             print("Recipient cannot be blank.")
             continue
@@ -282,7 +368,7 @@ def add_transaction(new_category_id, new_category, category_name,
         while True:
             try:
                 new_amount = float(input("\nWhat is the value of the "
-                                         "transaction?\n"))
+                                         f"{transaction_type}?\n"))
                 if new_amount < 0:
                     print("Amount cannot be negative.")
                     continue
@@ -291,27 +377,24 @@ def add_transaction(new_category_id, new_category, category_name,
                 print("\nInvalid entry. Please try again.")
                 continue
 
+        # Creates new object in Transaction class from user inputs
         new_transaction = Transaction(None, new_recipient, new_amount,
                                       transaction_type,
                                       today.isoformat(),
                                       new_category_id)
 
-        category_map = {
-            1: "Bills",
-            2: "Personal",
-            3: "Travel",
-            4: "Food and Drink"}
-
+        # Adds new transaction to database
         new_transaction.add(new_category_id)
         action_word = "to" if transaction_type == "Expense" else "from"
 
+        category_map = get_category_map()
         if new_category in category_map:
             print(f"\nNew {transaction_type} added in "
                   f"{category_map[new_category]}: "
                   f"£{new_transaction.amount:.2f} {action_word} "
                   f"{new_transaction.recipient} on {today}.")
 
-        if new_category == 5:
+        if new_category == 0:
             print(f"\nNew {transaction_type} added in "
                   f"{category_name}: "
                   f"£{new_transaction.amount:.2f} {action_word} "
@@ -326,7 +409,7 @@ def add_more(transaction_type):
 
     while True:
         add_another = input("\nWould you like to add another "
-                            "transaction? (Y/N):\n")
+                            f"{transaction_type}? (Y/N):\n")
         if add_another in ("Y", "y"):
             define_category(transaction_type)
         if add_another in ("N", "n"):
@@ -363,6 +446,8 @@ def view_expenses_menu():
         view_all_transactions("Expense")
     if view_option == 2:
         update_amount("Expense")
+    if view_option == 3:
+        delete_category()
 
 
 def search_results(results, transaction_type):
@@ -374,6 +459,8 @@ def search_results(results, transaction_type):
         transaction = Transaction(None, recipient, amount,
                                   transaction_type, transaction_date,
                                   category_id)
+
+        # Prints out list of transactions in user-friendly format
         print(transaction)
         print("\n")
 
@@ -463,6 +550,82 @@ def update_more(transaction_type):
         if update_another in ("N", "n"):
             print("\nYou have chosen not to update any more "
                   "transactions and will be taken back to the home "
+                  "screen.\n")
+            menu()
+        else:
+            print("\nInvalid entry. Please enter 'Y' or 'N'.")
+            continue
+
+
+def delete_category():
+    '''Deletes a Category from the database'''
+
+    while True:
+        category_map = get_category_map()
+        print("\nWhich category would you like to delete?\n")
+        for key, value in category_map.items():
+            print(f"{key}. {value}")
+
+        try:
+            delete_choice = int(input("\nMenu choice: "))
+            if delete_choice not in category_map:
+                print("\nInvalid entry. Please try again.")
+                continue
+        except ValueError:
+            print("\nInvalid entry. Please try again.")
+            continue
+
+        category_type = category_map.get(delete_choice)
+        category_to_delete = Category(delete_choice, category_type)
+
+        if not category_to_delete.does_exist(cursor):
+            print(f"\n{category_to_delete.category_type} "
+                  "could not be deleted because it does not exist.")
+            continue
+        else:
+            category_to_delete.delete()
+            print(f"\n{category_to_delete.category_type} was deleted "
+                  "from the database.")
+        break
+
+    null_deleted_category(delete_choice)
+    delete_more()
+
+
+def null_deleted_category(delete_choice):
+    '''Changes category_id to NULL of deleted category transactions'''
+
+    try:
+        # Selects all Transactions in deleted category
+        cursor.execute('''SELECT * FROM Transactions WHERE
+                       category_id = ?''', (delete_choice,))
+        transactions = cursor.fetchall()
+
+        # Iterates through the list and establishes as objects
+        for transaction in transactions:
+            _, _, _, _, _, _ = transaction
+            transaction = Transaction(None, None, None, None, None,
+                                      delete_choice)
+
+            # Redefines category as NULL
+            transaction.category_to_null(delete_choice)
+    except sqlite3.Error as e:
+        print("Error: The database could not be accessed. "
+              f"Error details: {e}")
+        raise e
+
+
+def delete_more():
+    '''Gives user option to delete another category'''
+
+    while True:
+        delete_another = input("\nWould you like to delete another "
+                               "category? (Y/N):\n")
+        if delete_another in ("Y", "y"):
+            delete_category()
+        if delete_another in ("N", "n"):
+            print("\nYou have chosen not to delete any more "
+                  "categories and will be taken back to the home "
                   "screen.\n")
             menu()
         else:
