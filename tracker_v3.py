@@ -258,9 +258,11 @@ def options(menu_choice):
     if menu_choice == 1:
         define_category("Expense")
     if menu_choice == 2:
-        view_expenses_menu()
+        view_transaction_menu("Expense")
     if menu_choice == 4:
         define_category("Income")
+    if menu_choice == 5:
+        view_transaction_menu("Income")
     if menu_choice == 11:
         print("\nYou have successfully quit the application!")
         exit()
@@ -421,13 +423,13 @@ def add_more(transaction_type):
             continue
 
 
-def view_expenses_menu():
+def view_transaction_menu(transaction_type):
     '''Gives user option to view, amend or delete expense'''
 
     print("\nWhat would you like to do?\n"
-          "\n1. View all expenses"
-          "\n2. Update an expense amount"
-          "\n3. Delete an expense category")
+          f"\n1. View all {transaction_type}s"
+          f"\n2. Update an {transaction_type} amount"
+          f"\n3. Delete an {transaction_type} category")
 
     while True:
         try:
@@ -443,9 +445,9 @@ def view_expenses_menu():
         break
 
     if view_option == 1:
-        view_all_transactions("Expense")
+        view_all_transactions(transaction_type)
     if view_option == 2:
-        update_amount("Expense")
+        update_amount(transaction_type)
     if view_option == 3:
         delete_category()
 
