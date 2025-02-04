@@ -242,14 +242,17 @@ class Goal:
                         f"{category_map[progress_choice]}.")
 
             progress_total = category_income - category_expense
-
+            due_date = datetime.strptime(self.due_date,
+                                         "%Y-%m-%d").date()
             if progress_total >= 0:
                 progress_percent = (progress_total /
                                     self.goal_target) * 100
                 if progress_percent < 100:
-                    return (f"You are {progress_percent:.2f}% of "
+                    return (f"You are {progress_percent:.0f}% of "
                             "the way to achieving your "
-                            f"{category_map[progress_choice]} Goal.")
+                            f"{category_map[progress_choice]} Goal and"
+                            f" you have {(due_date - today).days} days "
+                            "left.")
                 else:
                     return ("You have achieved your "
                             f"{category_map[progress_choice]} Goal!")
@@ -257,7 +260,8 @@ class Goal:
                 goal_deficit = abs(progress_total - self.goal_target)
                 return (f"You are £{goal_deficit:.2f} away from "
                         f"reaching your {category_map[progress_choice]}"
-                        " Goal.")
+                        f" Goal and you have {(due_date - today).days}"
+                        " days left.")
 
         except sqlite3.Error as e:
             return ("Error: The database could not be accessed. "
@@ -419,7 +423,7 @@ def options(menu_choice):
     if menu_choice == 10:
         view_progress()
     if menu_choice == 11:
-        print("\nYou have successfully quit the application!")
+        print("\nYou have successfully quit the application!\n")
         exit()
 
 
