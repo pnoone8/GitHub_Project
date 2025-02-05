@@ -156,10 +156,19 @@ class Category:
 
 
 class Budget:
-    '''Define Budget as its own class.'''
+    '''Define Budget as its own class.
+
+    Attributes:
+        budget_id (int): Unique Budget identifier.
+        category_id (int): ID of the associated category.
+        budget_amount (float): Budget amount.
+        start_date (date): Start date of Budget period.
+        end_date (date): End date of Budget period.
+    '''
 
     def __init__(self, budget_id, category_id, budget_amount,
                  start_date, end_date):
+        '''Set up parameters for Budget object'''
         self.budget_id = budget_id
         self.category_id = category_id
         self.budget_amount = budget_amount
@@ -193,7 +202,14 @@ class Budget:
 
 
 class Goal:
-    '''Define Goal as its own class.'''
+    '''Define Goal as its own class.
+
+    Attributes:
+        goal_id (int): Unique Goal identifier.
+        category_id (int): ID of the associated category.
+        goal_target (float): Amount to target in specified category.
+        due_date (date): Date by which Goal should be reached.
+    '''
 
     def __init__(self, goal_id, category_id, goal_target, due_date):
         self.goal_id = goal_id
@@ -227,11 +243,13 @@ class Goal:
         category_map = get_category_map()
 
         try:
+            # Get total income in a Category from database
             cursor.execute('''SELECT sum(amount) FROM Transactions
                            WHERE type = ? AND category_id = ?''',
                            ("Income", progress_choice))
             category_income = cursor.fetchone()[0] or 0
 
+            # Get total expenses in a Category from database
             cursor.execute('''SELECT sum(amount) FROM Transactions
                            WHERE type = ? AND category_id = ?''',
                            ("Expense", progress_choice))
@@ -241,9 +259,14 @@ class Goal:
                 return ("No transactions were found in "
                         f"{category_map[progress_choice]}.")
 
+            # Calculate total towards progress
             progress_total = category_income - category_expense
+
+            # Recast date to date format
             due_date = datetime.strptime(self.due_date,
                                          "%Y-%m-%d").date()
+
+            # Display messages to user notifying them of progress
             if progress_total >= 0:
                 progress_percent = (progress_total /
                                     self.goal_target) * 100
@@ -269,7 +292,7 @@ class Goal:
 
 
 def create_tables():
-    '''Create tables for Transactions, Categories Budgets and Goals.'''
+    '''Create tables for Transactions, Categories, Budgets and Goals.'''
     try:
         cursor.execute('''CREATE TABLE IF NOT EXISTS Transactions
                         (id INTEGER PRIMARY KEY, recipient_or_payer
@@ -557,6 +580,7 @@ def budget_notice(transaction_type, category_id):
 
     category_map = get_category_map()
 
+    # Warning message if user is approaching Budget total
     if budget_sum:
         if (transaction_type == "Expense" and
                 transaction_sum > (budget_sum * 0.9)):
@@ -569,7 +593,7 @@ def budget_notice(transaction_type, category_id):
 
 
 def more(transaction_type, verb, noun):
-    '''Give user option to add another transaction.'''
+    '''Give user option to repeat current function.'''
     while True:
         repeat_action = input(f"\nWould you like to {verb} another "
                               f"{transaction_type}? (Y/N):\n")
@@ -632,7 +656,7 @@ def view_transaction_menu(transaction_type):
 
 
 def search_results(results, table_name):
-    '''Iterate through search results.'''
+    '''Iterate through search results in different classes.'''
     transactions = []
     budgets = []
     goals = []
@@ -737,7 +761,8 @@ def update_amount(transaction_type):
                 print("\nTransaction to update:")
                 print_results(update_results, "Transactions", None)
             else:
-                print("\nTransaction ID not found. Please try again.")
+                print("\nTransaction ID not found in "
+                      f"{transaction_type}s. Please try again.")
                 continue
         except sqlite3.Error as e:
             print("Error: The database could not be accessed. "
@@ -958,7 +983,7 @@ def enter_budget(budget_category, budget_amount, start_date, end_date):
 
 
 def budget_by_category():
-    '''Allow user to view Budgets by Category'''
+    '''Allow user to view Budgets by Category.'''
     while True:
         try:
             category_map = get_category_map()
@@ -1017,7 +1042,7 @@ def set_goal_due_date(class_category, new_amount):
 
 
 def enter_goal(class_category, new_amount, due_date):
-    '''Enter Goal into the database'''
+    '''Enter Goal into the database.'''
     new_goal = Goal(None, class_category, new_amount, due_date)
     new_goal.add()
 
@@ -1026,7 +1051,7 @@ def enter_goal(class_category, new_amount, due_date):
 
 
 def view_progress():
-    '''View progress towards financial Goals'''
+    '''View progress towards financial Goals.'''
     while True:
         try:
             category_map = get_category_map()
@@ -1047,7 +1072,7 @@ def view_progress():
 
 
 def display_progress(progress_choice, category_map):
-    '''Display Goal progress to user'''
+    '''Display Goal progress to user.'''
     try:
         cursor.execute('''SELECT * FROM Goals WHERE category_id = ?''',
                        (progress_choice,))
